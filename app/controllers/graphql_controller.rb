@@ -8,8 +8,8 @@ class GraphqlController < ApplicationController
     )
 
     render json: result
-  rescue StandardError => error
-    render json: { errors: [{ message: error.message }] }, status: :unprocessable_entity
+  rescue StandardError => e
+    render json: { errors: [{ message: e.message }] }, status: :unprocessable_entity
   end
 
   private
