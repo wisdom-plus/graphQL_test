@@ -1,19 +1,22 @@
-# Rails + GraphQL Docker Setup
+# Rails + GraphQL + Next.js Docker Setup
 
-GraphQLを試せる最小構成のRails APIアプリです。`docker compose` でRailsとPostgreSQLを起動できます。
+Rails API, PostgreSQL, Next.js frontendを `docker compose` でまとめて起動できます。
 
 ## 起動
 
 ```bash
-docker compose build
-docker compose up
+docker compose up -d --build
 ```
 
-Railsは初回起動時に `db:prepare` を実行します。
+## URL
+
+- Rails GraphQL API: `http://localhost:3000/graphql`
+- Rails health check: `http://localhost:3000/up`
+- Next.js frontend: `http://localhost:3001`
 
 ## GraphQLの確認
 
-別ターミナルで以下を実行してください。
+APIを直接叩く場合:
 
 ```bash
 curl http://localhost:3000/graphql \
@@ -21,19 +24,17 @@ curl http://localhost:3000/graphql \
   -d '{"query":"{ hello }"}'
 ```
 
-期待されるレスポンス:
-
-```json
-{"data":{"hello":"Hello from Rails GraphQL"}}
-```
+フロントを使う場合は `http://localhost:3001` を開くと、ブラウザ上でクエリ実行とレスポンス確認ができます。
 
 ## テスト
 
 ```bash
 docker compose run --rm web bundle exec rails test
+cd frontend && npm run lint
 ```
 
-## 主なエンドポイント
+## 停止
 
-- `POST /graphql`
-- `GET /up`
+```bash
+docker compose down
+```

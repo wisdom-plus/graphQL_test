@@ -1,11 +1,15 @@
-# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+one:
+  id: 1
+  title: Test Driven Rails
+  author: Codex
+  isbn: "9780000000001"
+  published_date: 2026-03-08
+  description: Seed fixture for integration tests.
 
-# This model initially had no columns defined. If you add columns to the
-# model remove the "{}" from the fixture names and add the columns immediately
-# below each fixture, per the syntax in the comments below
-#
-one: {}
-# column: value
-#
-two: {}
-# column: value
+two:
+  id: 2
+  title: GraphQL by Example
+  author: OpenAI
+  isbn: "9780000000002"
+  published_date: 2026-03-07
+  description: Secondary fixture record.
