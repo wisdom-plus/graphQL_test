@@ -148,6 +148,71 @@
   gap: 10px;
 }
 
+.lookupBox {
+  align-items: center;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0.5));
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  display: grid;
+  gap: 18px;
+  grid-template-columns: minmax(0, 1.4fr) minmax(240px, 0.9fr);
+  padding: 18px 20px;
+}
+
+.lookupCopy {
+  display: grid;
+  gap: 8px;
+}
+
+.lookupCopy h3 {
+  font-size: 1.15rem;
+  letter-spacing: -0.03em;
+  margin: 0;
+}
+
+.lookupCopy p {
+  color: var(--ink-soft);
+  line-height: 1.6;
+  margin: 0;
+}
+
+.lookupControls {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.lookupInput {
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--ink);
+  min-width: 0;
+  padding: 12px 16px;
+  width: 100%;
+}
+
+.lookupInput:focus {
+  border-color: rgba(255, 107, 74, 0.52);
+  box-shadow: 0 0 0 4px rgba(255, 107, 74, 0.12);
+  outline: none;
+}
+
+.lookupButton {
+  background: rgba(16, 32, 51, 0.94);
+  border: 0;
+  border-radius: 999px;
+  color: white;
+  cursor: pointer;
+  font-weight: 700;
+  padding: 12px 18px;
+  white-space: nowrap;
+}
+
+.lookupButton:hover {
+  opacity: 0.92;
+}
+
 .presetButton {
   background: rgba(255, 255, 255, 0.62);
   color: var(--ink);
@@ -250,6 +315,62 @@
   word-break: break-word;
 }
 
+.bookCard,
+.bookEmpty {
+  background: linear-gradient(180deg, rgba(13, 143, 138, 0.1), rgba(13, 143, 138, 0.04));
+  border: 1px solid rgba(13, 143, 138, 0.18);
+  border-radius: 22px;
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+}
+
+.bookCardHeader {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.bookCard h3 {
+  font-size: 1.35rem;
+  letter-spacing: -0.04em;
+  margin: 0;
+}
+
+.bookCard p,
+.bookEmpty p {
+  color: var(--ink-soft);
+  line-height: 1.6;
+  margin: 0;
+}
+
+.bookFacts {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0;
+}
+
+.bookFacts div {
+  background: rgba(255, 255, 255, 0.54);
+  border: 1px solid rgba(13, 143, 138, 0.12);
+  border-radius: 16px;
+  padding: 12px;
+}
+
+.bookFacts dt {
+  color: var(--ink-soft);
+  font-family: "Courier New", "SFMono-Regular", Consolas, monospace;
+  font-size: 0.75rem;
+  letter-spacing: 0.12em;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+
+.bookFacts dd {
+  margin: 0;
+}
+
 .notes {
   display: grid;
   gap: 16px;
@@ -291,12 +412,21 @@
     align-items: stretch;
   }
 
+  .lookupBox,
+  .bookFacts {
+    grid-template-columns: 1fr;
+  }
+
   .metaChips {
     justify-content: flex-start;
   }
 
   .runButton {
     width: 100%;
+  }
+
+  .lookupControls {
+    flex-direction: column;
   }
 }
 
