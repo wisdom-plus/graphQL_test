@@ -10,27 +10,27 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_03_08_005240) do
+ActiveRecord::Schema[7.1].define(version: 20_260_308_005_240) do
   # These are extensions that must be enabled in order to support this database
-  enable_extension "plpgsql"
+  enable_extension 'plpgsql'
 
-  create_table "books", force: :cascade do |t|
-    t.string "title"
-    t.string "author"
-    t.string "isbn"
-    t.date "published_date"
-    t.text "description"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
+  create_table 'books', force: :cascade do |t|
+    t.string 'title'
+    t.string 'author'
+    t.string 'isbn'
+    t.date 'published_date'
+    t.text 'description'
+    t.datetime 'created_at', null: false
+    t.datetime 'updated_at', null: false
   end
 
-  create_table "comments", force: :cascade do |t|
-    t.text "content"
-    t.bigint "book_id", null: false
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.index ["book_id"], name: "index_comments_on_book_id"
+  create_table 'comments', force: :cascade do |t|
+    t.text 'content'
+    t.bigint 'book_id', null: false
+    t.datetime 'created_at', null: false
+    t.datetime 'updated_at', null: false
+    t.index ['book_id'], name: 'index_comments_on_book_id'
   end
 
-  add_foreign_key "comments", "books"
+  add_foreign_key 'comments', 'books'
 end
