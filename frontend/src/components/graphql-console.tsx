@@ -15,6 +15,11 @@ const PRESETS = [
       'query BookOne {\n  book(id: "1") {\n    id\n    title\n    author\n    isbn\n    publishedDate\n    description\n  }\n}',
   },
   {
+    label: "Book 1 + Comments",
+    query:
+      'query BookOneWithComments {\n  book(id: "1") {\n    id\n    title\n    author\n    isbn\n    publishedDate\n    description\n    comments {\n      id\n      content\n      createdAt\n    }\n  }\n}',
+  },
+  {
     label: "Schema",
     query:
       "query SchemaCheck {\n  __schema {\n    queryType {\n      name\n    }\n  }\n}",
@@ -72,6 +77,24 @@ type BookCard = {
   description?: string | null;
 };
 
+type CommentCard = {
+  id: string;
+  content: string;
+  createdAt?: string | null;
+};
+
+type BookWithCommentsCard = BookCard & {
+  comments: CommentCard[];
+};
+
+function readOptionalString(
+  source: object,
+  key: string,
+): string | null {
+  const value = Reflect.get(source, key);
+  return typeof value === "string" ? value : null;
+}
+
 function extractBook(payload: unknown): BookCard | null {
   if (typeof payload !== "object" || payload === null) {
     return null;
@@ -97,17 +120,63 @@ function extractBook(payload: unknown): BookCard | null {
 
   return {
     id,
-    title: typeof Reflect.get(book, "title") === "string" ? String(Reflect.get(book, "title")) : null,
-    author: typeof Reflect.get(book, "author") === "string" ? String(Reflect.get(book, "author")) : null,
-    isbn: typeof Reflect.get(book, "isbn") === "string" ? String(Reflect.get(book, "isbn")) : null,
-    publishedDate:
-      typeof Reflect.get(book, "publishedDate") === "string"
-        ? String(Reflect.get(book, "publishedDate"))
-        : null,
-    description:
-      typeof Reflect.get(book, "description") === "string"
-        ? String(Reflect.get(book, "description"))
-        : null,
+    title: readOptionalString(book, "title"),
+    author: readOptionalString(book, "author"),
+    isbn: readOptionalString(book, "isbn"),
+    publishedDate: readOptionalString(book, "publishedDate"),
+    description: readOptionalString(book, "description"),
+  };
+}
+
+function extractBookWithComments(
+  payload: unknown,
+): BookWithCommentsCard | null {
+  const book = extractBook(payload);
+
+  if (!book || typeof payload !== "object" || payload === null) {
+    return null;
+  }
+
+  const data = Reflect.get(payload, "data");
+
+  if (typeof data !== "object" || data === null) {
+    return null;
+  }
+
+  const bookNode = Reflect.get(data, "book");
+
+  if (typeof bookNode !== "object" || bookNode === null) {
+    return null;
+  }
+
+  const comments = Reflect.get(bookNode, "comments");
+
+  if (!Array.isArray(comments)) {
+    return null;
+  }
+
+  return {
+    ...book,
+    comments: comments
+      .filter((comment): comment is object => {
+        return typeof comment === "object" && comment !== null;
+      })
+      .flatMap((comment) => {
+        const id = Reflect.get(comment, "id");
+        const content = Reflect.get(comment, "content");
+
+        if (typeof id !== "string" || typeof content !== "string") {
+          return [];
+        }
+
+        return [
+          {
+            id,
+            content,
+            createdAt: readOptionalString(comment, "createdAt"),
+          },
+        ];
+      }),
   };
 }
 
@@ -126,6 +195,26 @@ function buildBookQuery(id: string) {
   ].join("\n");
 }
 
+function buildBookWithCommentsQuery(id: string) {
+  return [
+    "query BookWithCommentsLookup {",
+    `  book(id: "${id}") {`,
+    "    id",
+    "    title",
+    "    author",
+    "    isbn",
+    "    publishedDate",
+    "    description",
+    "    comments {",
+    "      id",
+    "      content",
+    "      createdAt",
+    "    }",
+    "  }",
+    "}",
+  ].join("\n");
+}
+
 function lineCount(value: string) {
   return value.split("\n").length;
 }
@@ -139,7 +228,10 @@ export default function GraphqlConsole() {
   const [meta, setMeta] = useState<string>("Ready to talk to Rails GraphQL");
   const [lastRun, setLastRun] = useState<string>("not yet");
   const [bookId, setBookId] = useState<string>("1");
+  const [bookWithCommentsId, setBookWithCommentsId] = useState<string>("1");
   const [selectedBook, setSelectedBook] = useState<BookCard | null>(null);
+  const [selectedBookWithComments, setSelectedBookWithComments] =
+    useState<BookWithCommentsCard | null>(null);
   const [isPending, startTransition] = useTransition();
 
   async function executeQuery(nextQuery: string) {
@@ -152,6 +244,7 @@ export default function GraphqlConsole() {
       startTransition(() => {
         setResponseBody(result.payload);
         setSelectedBook(extractBook(result.parsed));
+        setSelectedBookWithComments(extractBookWithComments(result.parsed));
         setPhase(result.ok ? "success" : "error");
         setMeta(`HTTP ${result.status} in ${result.latencyMs} ms`);
         setLastRun(new Date().toLocaleTimeString());
@@ -165,6 +258,7 @@ export default function GraphqlConsole() {
           JSON.stringify({ errors: [{ message }] }, null, 2),
         );
         setSelectedBook(null);
+        setSelectedBookWithComments(null);
         setPhase("error");
         setMeta("Request failed before Rails responded");
         setLastRun(new Date().toLocaleTimeString());
@@ -283,6 +377,54 @@ export default function GraphqlConsole() {
             </div>
           </div>
 
+          <div className={styles.lookupBox}>
+            <div className={styles.lookupCopy}>
+              <p className={styles.panelEyebrow}>Book + Comments Fetch</p>
+              <h3>Load a book together with its comments</h3>
+              <p>
+                This leaves the existing book-only fetch intact and issues a
+                separate query that includes nested comments.
+              </p>
+            </div>
+            <div className={styles.lookupControls}>
+              <input
+                className={styles.lookupInput}
+                inputMode="numeric"
+                min="1"
+                onChange={(event) => setBookWithCommentsId(event.target.value)}
+                value={bookWithCommentsId}
+              />
+              <button
+                className={styles.lookupButton}
+                onClick={() => {
+                  const trimmedId = bookWithCommentsId.trim();
+
+                  if (trimmedId.length === 0) {
+                    setPhase("error");
+                    setMeta("Book id is required");
+                    setSelectedBook(null);
+                    setSelectedBookWithComments(null);
+                    setResponseBody(
+                      JSON.stringify(
+                        { errors: [{ message: "Book id is required" }] },
+                        null,
+                        2,
+                      ),
+                    );
+                    return;
+                  }
+
+                  const nextQuery = buildBookWithCommentsQuery(trimmedId);
+                  setQuery(nextQuery);
+                  void executeQuery(nextQuery);
+                }}
+                type="button"
+              >
+                Fetch Book + Comments
+              </button>
+            </div>
+          </div>
+
           <label className={styles.editorLabel} htmlFor="graphql-query">
             GraphQL Query
           </label>
@@ -358,6 +500,45 @@ export default function GraphqlConsole() {
               <p>
                 Run the <strong>Book 1</strong> preset or use the quick fetch
                 form to load a book from Rails.
+              </p>
+            </section>
+          )}
+
+          {selectedBookWithComments ? (
+            <section className={styles.commentCard}>
+              <div className={styles.bookCardHeader}>
+                <span className={styles.noteLabel}>Comments Preview</span>
+                <strong>
+                  {selectedBookWithComments.comments.length} comments
+                </strong>
+              </div>
+              <h3>
+                {selectedBookWithComments.title ?? "Book"} comments
+              </h3>
+              {selectedBookWithComments.comments.length > 0 ? (
+                <ul className={styles.commentList}>
+                  {selectedBookWithComments.comments.map((comment) => (
+                    <li key={comment.id} className={styles.commentItem}>
+                      <div className={styles.commentMeta}>
+                        <span>Comment #{comment.id}</span>
+                        <span>{comment.createdAt ?? "timestamp unavailable"}</span>
+                      </div>
+                      <p>{comment.content}</p>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className={styles.commentEmpty}>
+                  This book currently has no comments.
+                </p>
+              )}
+            </section>
+          ) : (
+            <section className={styles.bookEmpty}>
+              <span className={styles.noteLabel}>Comments Preview</span>
+              <p>
+                Run <strong>Book 1 + Comments</strong> or use the dedicated
+                fetch form to load nested comments from Rails.
               </p>
             </section>
           )}
