@@ -159,6 +159,10 @@
   padding: 18px 20px;
 }
 
+.createBox {
+  align-items: start;
+}
+
 .lookupCopy {
   display: grid;
   gap: 8px;
@@ -174,6 +178,14 @@
   color: var(--ink-soft);
   line-height: 1.6;
   margin: 0;
+}
+
+.lookupCopy code {
+  background: rgba(16, 32, 51, 0.08);
+  border-radius: 999px;
+  font-family: "Courier New", "SFMono-Regular", Consolas, monospace;
+  font-size: 0.85em;
+  padding: 2px 8px;
 }
 
 .lookupControls {
@@ -192,7 +204,9 @@
   width: 100%;
 }
 
-.lookupInput:focus {
+.lookupInput:focus,
+.fieldInput:focus,
+.fieldTextarea:focus {
   border-color: rgba(255, 107, 74, 0.52);
   box-shadow: 0 0 0 4px rgba(255, 107, 74, 0.12);
   outline: none;
@@ -211,6 +225,68 @@
 
 .lookupButton:hover {
   opacity: 0.92;
+}
+
+.lookupButton:disabled {
+  cursor: wait;
+  opacity: 0.74;
+}
+
+.createForm {
+  display: grid;
+  gap: 16px;
+}
+
+.createGrid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.fieldGroup {
+  display: grid;
+  gap: 8px;
+}
+
+.fieldGroup span {
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.fieldWide {
+  grid-column: 1 / -1;
+}
+
+.fieldInput,
+.fieldTextarea {
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  color: var(--ink);
+  min-width: 0;
+  padding: 12px 16px;
+  width: 100%;
+}
+
+.fieldTextarea {
+  min-height: 110px;
+  resize: vertical;
+}
+
+.createActionRow {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.createHint {
+  color: var(--ink-soft);
+  line-height: 1.6;
+  margin: 0;
 }
 
 .presetButton {
@@ -446,7 +522,8 @@
   }
 
   .lookupBox,
-  .bookFacts {
+  .bookFacts,
+  .createGrid {
     grid-template-columns: 1fr;
   }
 
@@ -459,6 +536,11 @@
   }
 
   .lookupControls {
+    flex-direction: column;
+  }
+
+  .createActionRow {
+    align-items: stretch;
     flex-direction: column;
   }
 }

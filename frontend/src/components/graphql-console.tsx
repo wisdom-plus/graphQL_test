@@ -26,7 +26,25 @@ const PRESETS = [
   },
 ] as const;
 
+const CREATE_BOOK_MUTATION = [
+  "mutation CreateBook($input: BookInputType!) {",
+  "  createBook(book: $input) {",
+  "    id",
+  "    title",
+  "    author",
+  "    isbn",
+  "    publishedDate",
+  "    description",
+  "  }",
+  "}",
+].join("\n");
+
 type Phase = "idle" | "loading" | "success" | "error";
+
+type GraphqlRequest = {
+  query: string;
+  variables?: Record<string, unknown>;
+};
 
 type RequestResult = {
   ok: boolean;
@@ -36,7 +54,10 @@ type RequestResult = {
   latencyMs: number;
 };
 
-async function requestGraphql(query: string): Promise<RequestResult> {
+async function requestGraphql({
+  query,
+  variables,
+}: GraphqlRequest): Promise<RequestResult> {
   const startedAt = performance.now();
 
   const response = await fetch("/api/graphql", {
@@ -44,7 +65,7 @@ async function requestGraphql(query: string): Promise<RequestResult> {
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ query }),
+    body: JSON.stringify({ query, variables }),
   });
 
   const rawBody = await response.text();
@@ -87,15 +108,28 @@ type BookWithCommentsCard = BookCard & {
   comments: CommentCard[];
 };
 
-function readOptionalString(
-  source: object,
-  key: string,
-): string | null {
+type BookDraft = {
+  title: string;
+  author: string;
+  isbn: string;
+  publishedDate: string;
+  description: string;
+};
+
+const EMPTY_BOOK_DRAFT: BookDraft = {
+  title: "",
+  author: "",
+  isbn: "",
+  publishedDate: "",
+  description: "",
+};
+
+function readOptionalString(source: object, key: string): string | null {
   const value = Reflect.get(source, key);
   return typeof value === "string" ? value : null;
 }
 
-function extractBook(payload: unknown): BookCard | null {
+function readDataField(payload: unknown, key: string): object | null {
   if (typeof payload !== "object" || payload === null) {
     return null;
   }
@@ -106,9 +140,19 @@ function extractBook(payload: unknown): BookCard | null {
     return null;
   }
 
-  const book = Reflect.get(data, "book");
+  const field = Reflect.get(data, key);
 
-  if (typeof book !== "object" || book === null) {
+  if (typeof field !== "object" || field === null) {
+    return null;
+  }
+
+  return field;
+}
+
+function extractBookFromField(payload: unknown, key: string): BookCard | null {
+  const book = readDataField(payload, key);
+
+  if (!book) {
     return null;
   }
 
@@ -128,24 +172,26 @@ function extractBook(payload: unknown): BookCard | null {
   };
 }
 
+function extractBook(payload: unknown): BookCard | null {
+  return extractBookFromField(payload, "book");
+}
+
+function extractCreatedBook(payload: unknown): BookCard | null {
+  return extractBookFromField(payload, "createBook");
+}
+
 function extractBookWithComments(
   payload: unknown,
 ): BookWithCommentsCard | null {
   const book = extractBook(payload);
 
-  if (!book || typeof payload !== "object" || payload === null) {
+  if (!book) {
     return null;
   }
 
-  const data = Reflect.get(payload, "data");
+  const bookNode = readDataField(payload, "book");
 
-  if (typeof data !== "object" || data === null) {
-    return null;
-  }
-
-  const bookNode = Reflect.get(data, "book");
-
-  if (typeof bookNode !== "object" || bookNode === null) {
+  if (!bookNode) {
     return null;
   }
 
@@ -178,6 +224,19 @@ function extractBookWithComments(
         ];
       }),
   };
+}
+
+function hasGraphqlErrors(payload: unknown) {
+  if (typeof payload !== "object" || payload === null) {
+    return false;
+  }
+
+  const errors = Reflect.get(payload, "errors");
+  return Array.isArray(errors) && errors.length > 0;
+}
+
+function buildClientErrorPayload(message: string) {
+  return JSON.stringify({ errors: [{ message }] }, null, 2);
 }
 
 function buildBookQuery(id: string) {
@@ -222,47 +281,80 @@ function lineCount(value: string) {
 export default function GraphqlConsole() {
   const [query, setQuery] = useState<string>(PRESETS[0].query);
   const [responseBody, setResponseBody] = useState<string>(
-    '{\n  "hint": "Run a preset or edit the query and press Cmd/Ctrl + Enter."\n}',
+    '{\n  "hint": "Run a preset, fetch a book, or submit the create form."\n}',
   );
   const [phase, setPhase] = useState<Phase>("idle");
   const [meta, setMeta] = useState<string>("Ready to talk to Rails GraphQL");
   const [lastRun, setLastRun] = useState<string>("not yet");
   const [bookId, setBookId] = useState<string>("1");
   const [bookWithCommentsId, setBookWithCommentsId] = useState<string>("1");
+  const [bookDraft, setBookDraft] = useState<BookDraft>(EMPTY_BOOK_DRAFT);
   const [selectedBook, setSelectedBook] = useState<BookCard | null>(null);
   const [selectedBookWithComments, setSelectedBookWithComments] =
     useState<BookWithCommentsCard | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  async function executeQuery(nextQuery: string) {
+  function setDraftField<Key extends keyof BookDraft>(
+    key: Key,
+    value: BookDraft[Key],
+  ) {
+    setBookDraft((current) => ({
+      ...current,
+      [key]: value,
+    }));
+  }
+
+  function showClientError(message: string) {
+    setPhase("error");
+    setMeta(message);
+    setSelectedBook(null);
+    setSelectedBookWithComments(null);
+    setResponseBody(buildClientErrorPayload(message));
+    setLastRun(new Date().toLocaleTimeString());
+  }
+
+  async function executeQuery(
+    nextQuery: string,
+    variables?: GraphqlRequest["variables"],
+  ) {
     setPhase("loading");
     setMeta("Proxying request through Next.js");
 
     try {
-      const result = await requestGraphql(nextQuery);
+      const result = await requestGraphql({ query: nextQuery, variables });
+      const nextPhase =
+        result.ok && !hasGraphqlErrors(result.parsed) ? "success" : "error";
+      const nextBook =
+        extractBook(result.parsed) ?? extractCreatedBook(result.parsed);
 
       startTransition(() => {
         setResponseBody(result.payload);
-        setSelectedBook(extractBook(result.parsed));
+        setSelectedBook(nextBook);
         setSelectedBookWithComments(extractBookWithComments(result.parsed));
-        setPhase(result.ok ? "success" : "error");
-        setMeta(`HTTP ${result.status} in ${result.latencyMs} ms`);
+        setPhase(nextPhase);
+        setMeta(
+          hasGraphqlErrors(result.parsed)
+            ? `GraphQL error via HTTP ${result.status} in ${result.latencyMs} ms`
+            : `HTTP ${result.status} in ${result.latencyMs} ms`,
+        );
         setLastRun(new Date().toLocaleTimeString());
       });
+
+      return result;
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Unknown request failure";
 
       startTransition(() => {
-        setResponseBody(
-          JSON.stringify({ errors: [{ message }] }, null, 2),
-        );
+        setResponseBody(buildClientErrorPayload(message));
         setSelectedBook(null);
         setSelectedBookWithComments(null);
         setPhase("error");
         setMeta("Request failed before Rails responded");
         setLastRun(new Date().toLocaleTimeString());
       });
+
+      return null;
     }
   }
 
@@ -273,6 +365,38 @@ export default function GraphqlConsole() {
   useEffect(() => {
     void bootConsole();
   }, []);
+
+  async function createBookFromDraft() {
+    const title = bookDraft.title.trim();
+    const author = bookDraft.author.trim();
+    const isbn = bookDraft.isbn.trim();
+    const publishedDate = bookDraft.publishedDate.trim();
+    const description = bookDraft.description.trim();
+
+    if (title.length === 0 || author.length === 0) {
+      showClientError("Title and author are required");
+      return;
+    }
+
+    const variables = {
+      input: {
+        title,
+        author,
+        ...(isbn ? { isbn } : {}),
+        ...(publishedDate ? { publishedDate } : {}),
+        ...(description ? { description } : {}),
+      },
+    };
+
+    setQuery(CREATE_BOOK_MUTATION);
+    const result = await executeQuery(CREATE_BOOK_MUTATION, variables);
+    const createdBook = result ? extractCreatedBook(result.parsed) : null;
+
+    if (createdBook) {
+      setBookId(createdBook.id);
+      setBookWithCommentsId(createdBook.id);
+    }
+  }
 
   const statusLabel =
     phase === "idle"
@@ -353,16 +477,7 @@ export default function GraphqlConsole() {
                   const trimmedId = bookId.trim();
 
                   if (trimmedId.length === 0) {
-                    setPhase("error");
-                    setMeta("Book id is required");
-                    setSelectedBook(null);
-                    setResponseBody(
-                      JSON.stringify(
-                        { errors: [{ message: "Book id is required" }] },
-                        null,
-                        2,
-                      ),
-                    );
+                    showClientError("Book id is required");
                     return;
                   }
 
@@ -400,17 +515,7 @@ export default function GraphqlConsole() {
                   const trimmedId = bookWithCommentsId.trim();
 
                   if (trimmedId.length === 0) {
-                    setPhase("error");
-                    setMeta("Book id is required");
-                    setSelectedBook(null);
-                    setSelectedBookWithComments(null);
-                    setResponseBody(
-                      JSON.stringify(
-                        { errors: [{ message: "Book id is required" }] },
-                        null,
-                        2,
-                      ),
-                    );
+                    showClientError("Book id is required");
                     return;
                   }
 
@@ -424,6 +529,103 @@ export default function GraphqlConsole() {
               </button>
             </div>
           </div>
+
+          <form
+            className={`${styles.lookupBox} ${styles.createBox}`}
+            onSubmit={(event) => {
+              event.preventDefault();
+              void createBookFromDraft();
+            }}
+          >
+            <div className={styles.lookupCopy}>
+              <p className={styles.panelEyebrow}>Create Book</p>
+              <h3>Submit a mutation from the browser</h3>
+              <p>
+                Fill in the form and this screen will send{" "}
+                <code>createBook(user: $input)</code> through the same Next.js
+                proxy used by the query console.
+              </p>
+            </div>
+
+            <div className={styles.createForm}>
+              <div className={styles.createGrid}>
+                <label className={styles.fieldGroup}>
+                  <span>Title</span>
+                  <input
+                    className={styles.fieldInput}
+                    onChange={(event) =>
+                      setDraftField("title", event.target.value)
+                    }
+                    placeholder="The Shape of GraphQL"
+                    value={bookDraft.title}
+                  />
+                </label>
+
+                <label className={styles.fieldGroup}>
+                  <span>Author</span>
+                  <input
+                    className={styles.fieldInput}
+                    onChange={(event) =>
+                      setDraftField("author", event.target.value)
+                    }
+                    placeholder="Codex"
+                    value={bookDraft.author}
+                  />
+                </label>
+
+                <label className={styles.fieldGroup}>
+                  <span>ISBN</span>
+                  <input
+                    className={styles.fieldInput}
+                    onChange={(event) =>
+                      setDraftField("isbn", event.target.value)
+                    }
+                    placeholder="9781234567890"
+                    value={bookDraft.isbn}
+                  />
+                </label>
+
+                <label className={styles.fieldGroup}>
+                  <span>Published Date</span>
+                  <input
+                    className={styles.fieldInput}
+                    onChange={(event) =>
+                      setDraftField("publishedDate", event.target.value)
+                    }
+                    type="date"
+                    value={bookDraft.publishedDate}
+                  />
+                </label>
+
+                <label className={`${styles.fieldGroup} ${styles.fieldWide}`}>
+                  <span>Description</span>
+                  <textarea
+                    className={styles.fieldTextarea}
+                    onChange={(event) =>
+                      setDraftField("description", event.target.value)
+                    }
+                    placeholder="Short summary for the newly created book."
+                    value={bookDraft.description}
+                  />
+                </label>
+              </div>
+
+              <div className={styles.createActionRow}>
+                <p className={styles.createHint}>
+                  Required fields: title, author
+                </p>
+                <button
+                  className={styles.lookupButton}
+                  disabled={phase === "loading"}
+                  type="submit"
+                >
+                  {phase === "loading" || isPending
+                    ? "Submitting..."
+                    : "Create Book"}
+                </button>
+              </div>
+            </div>
+          </form>
 
           <label className={styles.editorLabel} htmlFor="graphql-query">
             GraphQL Query
@@ -499,7 +701,8 @@ export default function GraphqlConsole() {
               <span className={styles.noteLabel}>Book Preview</span>
               <p>
                 Run the <strong>Book 1</strong> preset or use the quick fetch
-                form to load a book from Rails.
+                form. The create form also lands here after a successful
+                mutation.
               </p>
             </section>
           )}
