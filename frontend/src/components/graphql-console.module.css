@@ -189,6 +189,7 @@
 }
 
 .lookupControls {
+  align-items: center;
   display: flex;
   gap: 10px;
   justify-content: flex-end;
@@ -199,9 +200,10 @@
   border: 1px solid var(--line);
   border-radius: 999px;
   color: var(--ink);
+  flex: 1 1 180px;
   min-width: 0;
   padding: 12px 16px;
-  width: 100%;
+  width: auto;
 }
 
 .lookupInput:focus,
@@ -218,6 +220,7 @@
   border-radius: 999px;
   color: white;
   cursor: pointer;
+  flex-shrink: 0;
   font-weight: 700;
   padding: 12px 18px;
   white-space: nowrap;
