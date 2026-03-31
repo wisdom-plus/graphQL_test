@@ -14,7 +14,7 @@ class GraphqlTest < ActionDispatch::IntegrationTest
            params: {
              query: <<~GRAPHQL,
                mutation CreateBook($input: BookInputType!) {
-                 createBook(user: $input) {
+                 createBook(book: $input) {
                    id
                    title
                    author
@@ -45,5 +45,34 @@ class GraphqlTest < ActionDispatch::IntegrationTest
     assert_equal "9781234567890", created_book["isbn"]
     assert_equal "2026-03-29", created_book["publishedDate"]
     assert_equal "Created through GraphQL mutation.", created_book["description"]
+  end
+
+  test "deletes a comment from graphql mutation" do
+    comment = comments(:one)
+
+    assert_difference("Comment.count", -1) do
+      post graphql_path,
+           params: {
+             query: <<~GRAPHQL,
+               mutation DeleteComment($commentId: ID!) {
+                 deleteComment(commentId: $commentId) {
+                   id
+                   content
+                 }
+               }
+             GRAPHQL
+             variables: {
+               commentId: comment.id
+             }
+           },
+           as: :json
+    end
+
+    assert_response :success
+    deleted_comment = response.parsed_body.dig("data", "deleteComment")
+
+    assert_equal comment.id.to_s, deleted_comment["id"]
+    assert_equal comment.content, deleted_comment["content"]
+    assert_nil Comment.find_by(id: comment.id)
   end
 end
