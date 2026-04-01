@@ -5,6 +5,7 @@ import { useEffect, useEffectEvent, useState, useTransition } from "react";
 import {
   CreateBookForm,
   CreateCommentForm,
+  DeleteCommentForm,
   LookupBox,
   PresetRow,
 } from "./graphql-console-controls";
@@ -14,12 +15,15 @@ import {
   buildClientErrorPayload,
   CREATE_BOOK_MUTATION,
   CREATE_COMMENT_MUTATION,
+  DELETE_COMMENT_MUTATION,
   EMPTY_BOOK_DRAFT,
   EMPTY_COMMENT_DRAFT,
+  EMPTY_DELETE_COMMENT_DRAFT,
   extractBook,
   extractBookWithComments,
   extractCreatedBook,
   extractCreatedComment,
+  extractDeletedComment,
   hasGraphqlErrors,
   lineCount,
   PRESETS,
@@ -29,6 +33,7 @@ import {
   type BookWithCommentsCard,
   type CommentDraft,
   type CreatedCommentCard,
+  type DeleteCommentDraft,
   type GraphqlRequest,
   type Phase,
 } from "./graphql-console-data";
@@ -48,10 +53,14 @@ export default function GraphqlConsole() {
   const [bookDraft, setBookDraft] = useState<BookDraft>(EMPTY_BOOK_DRAFT);
   const [commentDraft, setCommentDraft] =
     useState<CommentDraft>(EMPTY_COMMENT_DRAFT);
+  const [deleteCommentDraft, setDeleteCommentDraft] =
+    useState<DeleteCommentDraft>(EMPTY_DELETE_COMMENT_DRAFT);
   const [selectedBook, setSelectedBook] = useState<BookCard | null>(null);
   const [selectedBookWithComments, setSelectedBookWithComments] =
     useState<BookWithCommentsCard | null>(null);
   const [createdComment, setCreatedComment] =
+    useState<CreatedCommentCard | null>(null);
+  const [deletedComment, setDeletedComment] =
     useState<CreatedCommentCard | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -75,12 +84,23 @@ export default function GraphqlConsole() {
     }));
   }
 
+  function setDeleteCommentField<Key extends keyof DeleteCommentDraft>(
+    key: Key,
+    value: DeleteCommentDraft[Key],
+  ) {
+    setDeleteCommentDraft((current) => ({
+      ...current,
+      [key]: value,
+    }));
+  }
+
   function showClientError(message: string) {
     setPhase("error");
     setMeta(message);
     setSelectedBook(null);
     setSelectedBookWithComments(null);
     setCreatedComment(null);
+    setDeletedComment(null);
     setResponseBody(buildClientErrorPayload(message));
     setLastRun(new Date().toLocaleTimeString());
   }
@@ -99,12 +119,14 @@ export default function GraphqlConsole() {
       const nextBook =
         extractBook(result.parsed) ?? extractCreatedBook(result.parsed);
       const nextComment = extractCreatedComment(result.parsed);
+      const nextDeletedComment = extractDeletedComment(result.parsed);
 
       startTransition(() => {
         setResponseBody(result.payload);
         setSelectedBook(nextBook);
         setSelectedBookWithComments(extractBookWithComments(result.parsed));
         setCreatedComment(nextComment);
+        setDeletedComment(nextDeletedComment);
         setPhase(nextPhase);
         setMeta(
           hasGraphqlErrors(result.parsed)
@@ -124,6 +146,7 @@ export default function GraphqlConsole() {
         setSelectedBook(null);
         setSelectedBookWithComments(null);
         setCreatedComment(null);
+        setDeletedComment(null);
         setPhase("error");
         setMeta("Request failed before Rails responded");
         setLastRun(new Date().toLocaleTimeString());
@@ -223,11 +246,33 @@ export default function GraphqlConsole() {
     if (comment) {
       setBookId(bookIdValue);
       setBookWithCommentsId(bookIdValue);
+      setDeleteCommentField("commentId", comment.id);
       setCommentDraft((current) => ({
         ...current,
         bookId: bookIdValue,
         content: "",
       }));
+    }
+  }
+
+  async function deleteCommentFromDraft() {
+    const commentIdValue = deleteCommentDraft.commentId.trim();
+
+    if (commentIdValue.length === 0) {
+      showClientError("Comment id is required");
+      return;
+    }
+
+    const variables = {
+      commentId: commentIdValue,
+    };
+
+    setQuery(DELETE_COMMENT_MUTATION);
+    const result = await executeQuery(DELETE_COMMENT_MUTATION, variables);
+    const deleted = result ? extractDeletedComment(result.parsed) : null;
+
+    if (deleted) {
+      setDeleteCommentDraft({ commentId: "" });
     }
   }
 
@@ -316,6 +361,13 @@ export default function GraphqlConsole() {
             onChange={setCommentField}
           />
 
+          <DeleteCommentForm
+            deleteCommentDraft={deleteCommentDraft}
+            isLoading={phase === "loading" || isPending}
+            onSubmit={() => void deleteCommentFromDraft()}
+            onChange={setDeleteCommentField}
+          />
+
           <label className={styles.editorLabel} htmlFor="graphql-query">
             GraphQL Query
           </label>
@@ -352,6 +404,7 @@ export default function GraphqlConsole() {
 
         <GraphqlConsoleOutput
           createdComment={createdComment}
+          deletedComment={deletedComment}
           phase={phase}
           responseBody={responseBody}
           selectedBook={selectedBook}

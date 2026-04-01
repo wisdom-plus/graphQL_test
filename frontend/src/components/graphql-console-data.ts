@@ -44,6 +44,17 @@ export const CREATE_COMMENT_MUTATION = [
   "}",
 ].join("\n");
 
+export const DELETE_COMMENT_MUTATION = [
+  "mutation DeleteComment($commentId: ID!) {",
+  "  deleteComment(commentId: $commentId) {",
+  "    id",
+  "    content",
+  "    createdAt",
+  "    updatedAt",
+  "  }",
+  "}",
+].join("\n");
+
 export type Phase = "idle" | "loading" | "success" | "error";
 
 export type GraphqlRequest = {
@@ -91,6 +102,10 @@ export type CommentDraft = {
   content: string;
 };
 
+export type DeleteCommentDraft = {
+  commentId: string;
+};
+
 export type CreatedCommentCard = {
   id: string;
   content: string;
@@ -109,6 +124,10 @@ export const EMPTY_BOOK_DRAFT: BookDraft = {
 export const EMPTY_COMMENT_DRAFT: CommentDraft = {
   bookId: "1",
   content: "",
+};
+
+export const EMPTY_DELETE_COMMENT_DRAFT: DeleteCommentDraft = {
+  commentId: "",
 };
 
 export async function requestGraphql({
@@ -206,6 +225,30 @@ export function extractCreatedComment(
   payload: unknown,
 ): CreatedCommentCard | null {
   const comment = readDataField(payload, "createComment");
+
+  if (!comment) {
+    return null;
+  }
+
+  const id = Reflect.get(comment, "id");
+  const content = Reflect.get(comment, "content");
+
+  if (typeof id !== "string" || typeof content !== "string") {
+    return null;
+  }
+
+  return {
+    id,
+    content,
+    createdAt: readOptionalString(comment, "createdAt"),
+    updatedAt: readOptionalString(comment, "updatedAt"),
+  };
+}
+
+export function extractDeletedComment(
+  payload: unknown,
+): CreatedCommentCard | null {
+  const comment = readDataField(payload, "deleteComment");
 
   if (!comment) {
     return null;

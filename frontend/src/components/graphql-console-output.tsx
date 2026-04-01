@@ -8,6 +8,7 @@ import type {
 
 type GraphqlConsoleOutputProps = {
   createdComment: CreatedCommentCard | null;
+  deletedComment: CreatedCommentCard | null;
   phase: Phase;
   responseBody: string;
   selectedBook: BookCard | null;
@@ -16,6 +17,7 @@ type GraphqlConsoleOutputProps = {
 
 export function GraphqlConsoleOutput({
   createdComment,
+  deletedComment,
   phase,
   responseBody,
   selectedBook,
@@ -111,6 +113,21 @@ export function GraphqlConsoleOutput({
           <div className={styles.commentMeta}>
             <span>{createdComment.createdAt ?? "timestamp unavailable"}</span>
             <span>{createdComment.updatedAt ?? "updatedAt unavailable"}</span>
+          </div>
+        </section>
+      ) : null}
+
+      {deletedComment ? (
+        <section className={styles.commentCard}>
+          <div className={styles.bookCardHeader}>
+            <span className={styles.noteLabel}>Deleted Comment</span>
+            <strong>#{deletedComment.id}</strong>
+          </div>
+          <h3>Mutation result</h3>
+          <p>{deletedComment.content}</p>
+          <div className={styles.commentMeta}>
+            <span>{deletedComment.createdAt ?? "timestamp unavailable"}</span>
+            <span>{deletedComment.updatedAt ?? "updatedAt unavailable"}</span>
           </div>
         </section>
       ) : null}

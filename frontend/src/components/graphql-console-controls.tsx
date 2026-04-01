@@ -1,5 +1,9 @@
 import styles from "./graphql-console.module.css";
-import type { BookDraft, CommentDraft } from "./graphql-console-data";
+import type {
+  BookDraft,
+  CommentDraft,
+  DeleteCommentDraft,
+} from "./graphql-console-data";
 
 type Preset = {
   label: string;
@@ -228,6 +232,65 @@ export function CreateCommentForm({
           <p className={styles.createHint}>Required fields: book id, content</p>
           <button className={styles.lookupButton} disabled={isLoading} type="submit">
             {isLoading ? "Submitting..." : "Create Comment"}
+          </button>
+        </div>
+      </div>
+    </form>
+  );
+}
+
+type DeleteCommentFormProps = {
+  deleteCommentDraft: DeleteCommentDraft;
+  isLoading: boolean;
+  onSubmit: () => void;
+  onChange: <Key extends keyof DeleteCommentDraft>(
+    key: Key,
+    value: DeleteCommentDraft[Key],
+  ) => void;
+};
+
+export function DeleteCommentForm({
+  deleteCommentDraft,
+  isLoading,
+  onSubmit,
+  onChange,
+}: DeleteCommentFormProps) {
+  return (
+    <form
+      className={`${styles.lookupBox} ${styles.createBox}`}
+      onSubmit={(event) => {
+        event.preventDefault();
+        onSubmit();
+      }}
+    >
+      <div className={styles.lookupCopy}>
+        <p className={styles.panelEyebrow}>Delete Comment</p>
+        <h3>Remove a comment by id</h3>
+        <p>
+          Submit <code>deleteComment(commentId: $commentId)</code> to delete a
+          comment and inspect the deleted record returned by the mutation.
+        </p>
+      </div>
+
+      <div className={styles.createForm}>
+        <div className={styles.createGrid}>
+          <label className={styles.fieldGroup}>
+            <span>Comment ID</span>
+            <input
+              className={styles.fieldInput}
+              inputMode="numeric"
+              min="1"
+              onChange={(event) => onChange("commentId", event.target.value)}
+              placeholder="1"
+              value={deleteCommentDraft.commentId}
+            />
+          </label>
+        </div>
+
+        <div className={styles.createActionRow}>
+          <p className={styles.createHint}>Required field: comment id</p>
+          <button className={styles.lookupButton} disabled={isLoading} type="submit">
+            {isLoading ? "Submitting..." : "Delete Comment"}
           </button>
         </div>
       </div>
