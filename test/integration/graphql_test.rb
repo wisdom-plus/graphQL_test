@@ -56,8 +56,9 @@ class GraphqlTest < ActionDispatch::IntegrationTest
              query: <<~GRAPHQL,
                mutation DeleteComment($commentId: ID!) {
                  deleteComment(commentId: $commentId) {
-                   id
-                   content
+                   deletedCommentId
+                   success
+                   errors
                  }
                }
              GRAPHQL
@@ -71,8 +72,9 @@ class GraphqlTest < ActionDispatch::IntegrationTest
     assert_response :success
     deleted_comment = response.parsed_body.dig("data", "deleteComment")
 
-    assert_equal comment.id.to_s, deleted_comment["id"]
-    assert_equal comment.content, deleted_comment["content"]
+    assert_equal comment.id.to_s, deleted_comment["deletedCommentId"]
+    assert_equal true, deleted_comment["success"]
+    assert_equal [], deleted_comment["errors"]
     assert_nil Comment.find_by(id: comment.id)
   end
 end
