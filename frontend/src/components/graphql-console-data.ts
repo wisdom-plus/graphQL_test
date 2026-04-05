@@ -47,10 +47,9 @@ export const CREATE_COMMENT_MUTATION = [
 export const DELETE_COMMENT_MUTATION = [
   "mutation DeleteComment($commentId: ID!) {",
   "  deleteComment(commentId: $commentId) {",
-  "    id",
-  "    content",
-  "    createdAt",
-  "    updatedAt",
+  "    deletedCommentId",
+  "    success",
+  "    errors",
   "  }",
   "}",
 ].join("\n");
@@ -111,6 +110,12 @@ export type CreatedCommentCard = {
   content: string;
   createdAt?: string | null;
   updatedAt?: string | null;
+};
+
+export type DeletedCommentCard = {
+  deletedCommentId?: string | null;
+  success: boolean;
+  errors: string[];
 };
 
 export const EMPTY_BOOK_DRAFT: BookDraft = {
@@ -247,25 +252,24 @@ export function extractCreatedComment(
 
 export function extractDeletedComment(
   payload: unknown,
-): CreatedCommentCard | null {
-  const comment = readDataField(payload, "deleteComment");
+): DeletedCommentCard | null {
+  const result = readDataField(payload, "deleteComment");
 
-  if (!comment) {
+  if (!result) {
     return null;
   }
 
-  const id = Reflect.get(comment, "id");
-  const content = Reflect.get(comment, "content");
+  const success = Reflect.get(result, "success");
+  const errors = Reflect.get(result, "errors");
 
-  if (typeof id !== "string" || typeof content !== "string") {
+  if (typeof success !== "boolean" || !Array.isArray(errors)) {
     return null;
   }
 
   return {
-    id,
-    content,
-    createdAt: readOptionalString(comment, "createdAt"),
-    updatedAt: readOptionalString(comment, "updatedAt"),
+    deletedCommentId: readOptionalString(result, "deletedCommentId"),
+    success,
+    errors: errors.filter((error): error is string => typeof error === "string"),
   };
 }
 

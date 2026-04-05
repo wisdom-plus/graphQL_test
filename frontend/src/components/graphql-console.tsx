@@ -34,6 +34,7 @@ import {
   type CommentDraft,
   type CreatedCommentCard,
   type DeleteCommentDraft,
+  type DeletedCommentCard,
   type GraphqlRequest,
   type Phase,
 } from "./graphql-console-data";
@@ -61,7 +62,7 @@ export default function GraphqlConsole() {
   const [createdComment, setCreatedComment] =
     useState<CreatedCommentCard | null>(null);
   const [deletedComment, setDeletedComment] =
-    useState<CreatedCommentCard | null>(null);
+    useState<DeletedCommentCard | null>(null);
   const [isPending, startTransition] = useTransition();
 
   function setBookDraftField<Key extends keyof BookDraft>(

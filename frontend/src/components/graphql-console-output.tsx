@@ -3,12 +3,13 @@ import type {
   BookCard,
   BookWithCommentsCard,
   CreatedCommentCard,
+  DeletedCommentCard,
   Phase,
 } from "./graphql-console-data";
 
 type GraphqlConsoleOutputProps = {
   createdComment: CreatedCommentCard | null;
-  deletedComment: CreatedCommentCard | null;
+  deletedComment: DeletedCommentCard | null;
   phase: Phase;
   responseBody: string;
   selectedBook: BookCard | null;
@@ -121,13 +122,27 @@ export function GraphqlConsoleOutput({
         <section className={styles.commentCard}>
           <div className={styles.bookCardHeader}>
             <span className={styles.noteLabel}>Deleted Comment</span>
-            <strong>#{deletedComment.id}</strong>
+            <strong>
+              {deletedComment.deletedCommentId
+                ? `#${deletedComment.deletedCommentId}`
+                : deletedComment.success
+                  ? "Deleted"
+                  : "Failed"}
+            </strong>
           </div>
           <h3>Mutation result</h3>
-          <p>{deletedComment.content}</p>
+          <p>
+            {deletedComment.success
+              ? "Comment deletion completed."
+              : "Comment deletion failed."}
+          </p>
           <div className={styles.commentMeta}>
-            <span>{deletedComment.createdAt ?? "timestamp unavailable"}</span>
-            <span>{deletedComment.updatedAt ?? "updatedAt unavailable"}</span>
+            <span>{deletedComment.success ? "success: true" : "success: false"}</span>
+            <span>
+              {deletedComment.errors.length > 0
+                ? deletedComment.errors.join(", ")
+                : "errors: none"}
+            </span>
           </div>
         </section>
       ) : null}
